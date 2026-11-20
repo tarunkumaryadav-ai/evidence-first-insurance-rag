@@ -135,7 +135,7 @@ def test_literal_uploaded_pdf_phrase_bypasses_model_selector(store, settings):
         question="Does the policy cover using my car for driver education above 100 km/h?",
         product="car")})["response"]
     assert speed.status == "answered" and "100km/hour" in speed.answer
-    assert "No. The policy states:" in speed.answer
+    assert 'No. This use is listed under the policy exclusion "There is no cover if":' in speed.answer
     assert speed.sources[0].excerpt == (
         "There is no cover if your car is used for driver education at more than 100km/hour.")
 

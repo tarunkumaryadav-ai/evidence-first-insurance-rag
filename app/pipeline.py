@@ -92,7 +92,8 @@ def render_answer(evidence: list[dict], selection: Selection, settings: Settings
     for index, item in enumerate(selected, 1):
         heading = " > ".join(item["metadata"]["heading_path"])
         _, _, excerpt, negative = focused[index - 1]
-        prefix = "No. The policy states:" if negative else ""
+        prefix = ('No. This use is listed under the policy exclusion "There is no cover if":'
+                  if negative else "")
         body = f"{prefix}\n{excerpt}".strip()
         paragraphs.append(f"[{index}] {heading}\n{body}\nSource: {sources[index-1].url}")
     return Answer(status="answered", answer="\n\n".join(paragraphs), sources=sources)
