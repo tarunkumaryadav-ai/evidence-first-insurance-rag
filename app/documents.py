@@ -46,25 +46,28 @@ def document_secret(settings) -> str:
     return settings._runtime_document_secret
 
 
-def signature(settings, document_id: str, chunk_id: str, page: int, expires: int) -> str:
-    payload = f"{document_id}:{chunk_id}:{page}:{expires}".encode()
+def signature(settings, document_id: str, chunk_id: str, page: int, expires: int,
+              start: int = 0, end: int = 0) -> str:
+    payload = f"{document_id}:{chunk_id}:{page}:{expires}:{start}:{end}".encode()
     return hmac.new(document_secret(settings).encode(), payload, hashlib.sha256).hexdigest()
 
 
-def signed_evidence_url(settings, metadata: dict, chunk_id: str) -> str:
+def signed_evidence_url(settings, metadata: dict, chunk_id: str,
+                        start: int = 0, end: int = 0) -> str:
     expires = int(time.time()) + settings.document_link_ttl_seconds
     document_id = metadata["document_id"]
     page = int(metadata["page_number"])
-    query = urlencode({"chunk": chunk_id, "page": page, "expires": expires,
-                       "signature": signature(settings, document_id, chunk_id, page, expires)})
+    query = urlencode({"chunk": chunk_id, "page": page, "start": start, "end": end,
+                       "expires": expires, "signature": signature(
+                           settings, document_id, chunk_id, page, expires, start, end)})
     return f"/documents/{document_id}/evidence?{query}"
 
 
 def verify_signature(settings, document_id: str, chunk_id: str, page: int,
-                     expires: int, supplied: str) -> None:
+                     expires: int, supplied: str, start: int = 0, end: int = 0) -> None:
     if expires < int(time.time()):
         raise ValueError("This source link has expired")
-    expected = signature(settings, document_id, chunk_id, page, expires)
+    expected = signature(settings, document_id, chunk_id, page, expires, start, end)
     if not hmac.compare_digest(expected, supplied):
         raise ValueError("Invalid source link")
 

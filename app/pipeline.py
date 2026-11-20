@@ -38,7 +38,32 @@ class State(TypedDict, total=False):
     selection_response: str
 
 
-def render_answer(evidence: list[dict], selection: Selection, settings: Settings | None = None) -> Answer:
+def focused_pdf_span(question: str, text: str) -> tuple[int, int, str, bool]:
+    first = normalize_pdf_lookup(question).split()[:1]
+    if not first or first[0] not in {"are", "can", "does", "is", "will"}:
+        return 0, len(text), text, False
+    candidates, cursor = [], 0
+    for raw_line in text.splitlines(keepends=True):
+        line = raw_line.strip()
+        start = text.find(line, cursor) if line else cursor
+        cursor += len(raw_line)
+        if len(line) < 12:
+            continue
+        coverage, overlap = pdf_term_score(question, line)
+        candidates.append((coverage, overlap, -len(line), start, start + len(line), line))
+    if not candidates:
+        return 0, len(text), text, False
+    coverage, overlap, _, start, end, excerpt = max(candidates)
+    if overlap < 3 or coverage < 0.5:
+        return 0, len(text), text, False
+    preceding = normalize_pdf_lookup(text[max(0, start - 1200):start])
+    negative = any(marker in preceding or marker in normalize_pdf_lookup(excerpt) for marker in (
+        "there is no cover if", "not covered", "we won t cover", "we will not cover"))
+    return start, end, excerpt, negative
+
+
+def render_answer(evidence: list[dict], selection: Selection, settings: Settings | None = None,
+                  request: Question | None = None) -> Answer:
     supplied = {item["id"]: item for item in evidence}
     ids = list(dict.fromkeys(selection.evidence_ids))
     checked = list(dict.fromkeys(item["metadata"]["source_url"] for item in evidence))
@@ -47,19 +72,29 @@ def render_answer(evidence: list[dict], selection: Selection, settings: Settings
             answer="I could not find sufficient supporting evidence in the indexed Allianz content.",
             sources_checked=checked)
     selected = [supplied[item] for item in ids]
-    sources = [Source(url=(signed_evidence_url(settings, item["metadata"], item["id"])
-                          if settings and item["metadata"].get("origin") == "uploaded_pdf"
-                          else item["metadata"]["source_url"]), chunk_id=item["id"],
-                      heading_path=item["metadata"]["heading_path"],
-                      sitemap_lastmod=item["metadata"].get("sitemap_lastmod"),
-                      fetched_at=item["metadata"]["fetched_at"],
-                      origin=item["metadata"].get("origin", "unknown"),
-                      page_number=item["metadata"].get("page_number"),
-                      document_filename=item["metadata"].get("document_filename")) for item in selected]
+    focused = []
+    sources = []
+    for item in selected:
+        is_pdf = item["metadata"].get("origin") == "uploaded_pdf"
+        start, end, excerpt, negative = (focused_pdf_span(request.question, item["text"])
+            if is_pdf and request else (0, len(item["text"]), item["text"], False))
+        focused.append((start, end, excerpt, negative))
+        url = (signed_evidence_url(settings, item["metadata"], item["id"], start, end)
+               if settings and is_pdf else item["metadata"]["source_url"])
+        sources.append(Source(url=url, chunk_id=item["id"],
+            heading_path=item["metadata"]["heading_path"],
+            sitemap_lastmod=item["metadata"].get("sitemap_lastmod"),
+            fetched_at=item["metadata"]["fetched_at"],
+            origin=item["metadata"].get("origin", "unknown"),
+            page_number=item["metadata"].get("page_number"),
+            document_filename=item["metadata"].get("document_filename"), excerpt=excerpt))
     paragraphs = []
     for index, item in enumerate(selected, 1):
         heading = " > ".join(item["metadata"]["heading_path"])
-        paragraphs.append(f"[{index}] {heading}\n{item['text']}\nSource: {sources[index-1].url}")
+        _, _, excerpt, negative = focused[index - 1]
+        prefix = "No. The policy states:" if negative else ""
+        body = f"{prefix}\n{excerpt}".strip()
+        paragraphs.append(f"[{index}] {heading}\n{body}\nSource: {sources[index-1].url}")
     return Answer(status="answered", answer="\n\n".join(paragraphs), sources=sources)
 
 
@@ -172,7 +207,8 @@ def build_graph(store: Store, settings: Settings, *, selector=None):
         return {"selection": selection, "evidence": evidence, "selection_response": result.content}
 
     def respond(state: State):
-        return {"response": render_answer(state["evidence"], state.get("selection", Selection(evidence_ids=[])), settings)}
+        return {"response": render_answer(state["evidence"], state.get("selection", Selection(evidence_ids=[])),
+                                           settings, state["request"])}
 
     graph = StateGraph(State)
     graph.add_node("route", route)

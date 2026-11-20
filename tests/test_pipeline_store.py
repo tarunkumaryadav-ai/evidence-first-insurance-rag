@@ -114,7 +114,7 @@ def test_literal_uploaded_pdf_phrase_bypasses_model_selector(store, settings):
     from app.models import Chunk
     timestamp = datetime.now(timezone.utc).isoformat()
     text = ("A shared access contact is authorised to manage your policy and holds the same "
-            "authority to make changes, cancel and claim until you remove them. "
+            "authority to make changes, cancel and claim until you remove them.\n"
             "There is no cover if your car is used for driver education at more than 100km/hour.")
     metadata = {"source_url": "document://doc1", "document_id": "doc1",
                 "document_filename": "policy.pdf", "page_number": 35, "product": "car",
@@ -135,6 +135,9 @@ def test_literal_uploaded_pdf_phrase_bypasses_model_selector(store, settings):
         question="Does the policy cover using my car for driver education above 100 km/h?",
         product="car")})["response"]
     assert speed.status == "answered" and "100km/hour" in speed.answer
+    assert "No. The policy states:" in speed.answer
+    assert speed.sources[0].excerpt == (
+        "There is no cover if your car is used for driver education at more than 100km/hour.")
 
 
 def test_invented_citation_rejected(store, html):

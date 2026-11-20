@@ -51,6 +51,7 @@ class Source(BaseModel):
     origin: str
     page_number: int | None = None
     document_filename: str | None = None
+    excerpt: str | None = None
 
 
 class Answer(BaseModel):

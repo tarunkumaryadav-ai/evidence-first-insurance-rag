@@ -73,13 +73,18 @@ def test_private_upload_list_view_and_delete(monkeypatch, settings, store):
         document_id = uploaded.json()["id"]
         assert client.get("/documents", headers={"X-API-Key": "test-key"}).json()[0]["id"] == document_id
         with store.connect() as db:
-            row = db.execute("SELECT id,metadata FROM chunks WHERE url=?",
+            row = db.execute("SELECT id,body,metadata FROM chunks WHERE url=?",
                              (f"document://{document_id}",)).fetchone()
         import json
         metadata = json.loads(row["metadata"])
-        source = signed_evidence_url(settings, metadata, row["id"])
+        start = row["body"].index("Storm damage")
+        end = start + len("Storm damage is covered subject to policy terms.")
+        source = signed_evidence_url(settings, metadata, row["id"], start, end)
         viewer = client.get(source)
-        assert viewer.status_code == 200 and "<mark>" in viewer.text and "cited page 1" in viewer.text
+        assert viewer.status_code == 200 and (
+            "<mark>Storm damage is covered subject to policy terms.</mark>" in viewer.text)
+        assert "cited page 1" in viewer.text
         assert client.get(source.replace("page=1", "page=2")).status_code == 403
+        assert client.get(source.replace(f"start={start}", f"start={start + 1}")).status_code == 403
         assert client.delete(f"/documents/{document_id}", headers={"X-API-Key": "test-key"}).status_code == 200
         assert client.get("/documents", headers={"X-API-Key": "test-key"}).json() == []

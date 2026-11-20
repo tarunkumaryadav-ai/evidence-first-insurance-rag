@@ -160,16 +160,18 @@ def create_app(settings: Settings | None = None):
 
     @app.get("/documents/{document_id}/evidence", response_class=HTMLResponse, include_in_schema=False)
     def view_evidence(document_id: str, request: Request, chunk: str, page: int,
-                      expires: int, signature: str):
+                      expires: int, signature: str, start: int = 0, end: int = 0):
         try:
-            verify_signature(settings, document_id, chunk, page, expires, signature)
+            verify_signature(settings, document_id, chunk, page, expires, signature, start, end)
         except ValueError as exc:
             raise HTTPException(status_code=403, detail=str(exc)) from None
         document, evidence, metadata = document_evidence(request, document_id, chunk)
         if int(metadata.get("page_number", 0)) != page:
             raise HTTPException(status_code=403, detail="Source page mismatch")
-        query = f"chunk={chunk}&page={page}&expires={expires}&signature={signature}"
-        response = HTMLResponse(evidence_html(document["filename"], page, evidence["body"],
+        body = evidence["body"]
+        excerpt = body[start:end] if 0 <= start < end <= len(body) else body
+        query = f"chunk={chunk}&page={page}&start={start}&end={end}&expires={expires}&signature={signature}"
+        response = HTMLResponse(evidence_html(document["filename"], page, excerpt,
                                               f"/documents/{document_id}/file?{query}"))
         response.headers.update({"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff",
                                  "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; frame-src 'self'; base-uri 'none'; frame-ancestors 'none'"})
@@ -177,9 +179,9 @@ def create_app(settings: Settings | None = None):
 
     @app.get("/documents/{document_id}/file", include_in_schema=False)
     def view_document(document_id: str, request: Request, chunk: str, page: int,
-                      expires: int, signature: str):
+                      expires: int, signature: str, start: int = 0, end: int = 0):
         try:
-            verify_signature(settings, document_id, chunk, page, expires, signature)
+            verify_signature(settings, document_id, chunk, page, expires, signature, start, end)
         except ValueError as exc:
             raise HTTPException(status_code=403, detail=str(exc)) from None
         document, _, metadata = document_evidence(request, document_id, chunk)
