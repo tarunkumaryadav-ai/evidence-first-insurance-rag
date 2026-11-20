@@ -3,7 +3,7 @@
 [![CI](https://github.com/tarunkumaryadav-ai/evidence-first-insurance-rag/actions/workflows/ci.yml/badge.svg)](https://github.com/tarunkumaryadav-ai/evidence-first-insurance-rag/actions/workflows/ci.yml)
 [![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Local AI](https://img.shields.io/badge/inference-local--first-0F766E)](#local-models)
-[![Tests](https://img.shields.io/badge/tests-119%20passing-15803D)](#validation)
+[![Tests](https://img.shields.io/badge/tests-120%20passing-15803D)](#validation)
 
 A production-oriented, local-first retrieval-augmented generation system for
 answering questions from public insurance content. It combines controlled web
@@ -33,7 +33,7 @@ focuses on the engineering needed for a maintainable knowledge system:
 | Discovered sitemap entries | 512 |
 | In-scope car, home, and business pages | 192 |
 | Indexed chunks | 2,703 |
-| Offline automated tests | 119 passing |
+| Offline automated tests | 120 passing |
 | Ingestion errors in the recorded full run | 0 |
 
 The corpus figures describe a local run completed on 11 November 2026 and are not

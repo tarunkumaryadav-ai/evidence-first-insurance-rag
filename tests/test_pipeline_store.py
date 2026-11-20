@@ -38,6 +38,14 @@ def test_product_filter_and_unknown_variant(store, html):
     assert not store.retrieve(Question(question="accidental damage", product="car", variant="unknown"))
 
 
+def test_known_variant_can_use_product_landing_page_overview(store, html):
+    landing = "https://www.allianz.com.au/car-insurance.html"
+    ingest_html(store, html, SitemapEntry(url=landing))
+    rows = store.retrieve(Question(question="comprehensive accidental damage", product="car",
+                                   variant="comprehensive"))
+    assert rows and rows[0]["metadata"]["variant"] is None
+
+
 def test_stale_sources_not_returned(store, html):
     timestamp = (datetime.now(timezone.utc) - timedelta(days=20)).isoformat()
     chunks = extract_chunks(html, SitemapEntry(url=URL), fetched_at=timestamp)

@@ -14,7 +14,7 @@ from qdrant_client import QdrantClient, models
 
 from app.config import Settings
 from app.models import Chunk, Question
-from app.extract import EXTRACTOR_VERSION
+from app.extract import EXTRACTOR_VERSION, VARIANTS
 from app.documents import PDF_EXTRACTOR_VERSION
 
 
@@ -172,9 +172,13 @@ class Store:
         for key in ("variant", "category"):
             if value := getattr(request, key):
                 match = models.FieldCondition(key=f"metadata.{key}", match=models.MatchValue(value=value))
-                conditions.append(models.Filter(should=[match, models.Filter(must=[global_scope,
-                    models.IsNullCondition(is_null=models.PayloadField(key="metadata.variant"))])])
-                    if key == "variant" else match)
+                if key == "variant" and value in VARIANTS.get(request.product, {}):
+                    # A product landing page can contain an authoritative overview for a
+                    # named variant even though its URL correctly has no variant taxonomy.
+                    conditions.append(models.Filter(should=[match,
+                        models.IsNullCondition(is_null=models.PayloadField(key="metadata.variant"))]))
+                else:
+                    conditions.append(match)
         dense = vector.similarity_search_with_score(request.question,
                     k=self.settings.retrieve_k * 4, filter=models.Filter(must=conditions),
                     score_threshold=self.settings.min_similarity)
@@ -227,7 +231,8 @@ class Store:
                     is_global and request.product in metadata.get("applicable_products", [])):
                     continue
                 if any(getattr(request, key) and metadata.get(key) != getattr(request, key)
-                       and not (key == "variant" and is_global and metadata.get(key) is None)
+                       and not (key == "variant" and metadata.get(key) is None
+                                and getattr(request, key) in VARIANTS.get(request.product, {}))
                        for key in ("variant", "category")):
                     continue
                 if metadata.get("origin") != "uploaded_pdf" and datetime.fromisoformat(metadata["fetched_at"]) < cutoff:
