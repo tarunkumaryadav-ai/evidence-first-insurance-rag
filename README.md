@@ -1,6 +1,6 @@
 # Evidence-First Insurance RAG
 
-[![CI](https://github.com/tarunqwerty/evidence-first-insurance-rag/actions/workflows/ci.yml/badge.svg)](https://github.com/tarunqwerty/evidence-first-insurance-rag/actions/workflows/ci.yml)
+[![CI](https://github.com/tarunkumaryadav-ai/evidence-first-insurance-rag/actions/workflows/ci.yml/badge.svg)](https://github.com/tarunkumaryadav-ai/evidence-first-insurance-rag/actions/workflows/ci.yml)
 [![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Local AI](https://img.shields.io/badge/inference-local--first-0F766E)](#local-models)
 [![Tests](https://img.shields.io/badge/tests-115%20passing-15803D)](#validation)
@@ -71,7 +71,7 @@ unconstrained autonomous agent.
 ## Quick start
 
 ```powershell
-git clone https://github.com/tarunqwerty/evidence-first-insurance-rag.git
+git clone https://github.com/tarunkumaryadav-ai/evidence-first-insurance-rag.git
 cd evidence-first-insurance-rag
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.lock.txt
