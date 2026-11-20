@@ -103,6 +103,21 @@ def build_graph(store: Store, settings: Settings, *, selector=None):
         # Differing answers require model review rather than silently choosing one.
         if matches and len({" ".join(item["text"].split()) for item in matches}) == 1:
             return {"selection": Selection(evidence_ids=[matches[0]["id"]])}
+        # Uploaded policy documents often have page-based headings rather than HTML
+        # question headings. A literal, distinctive phrase is deterministic evidence
+        # retrieval and does not require a slow or probabilistic LLM decision.
+        words = question.split()
+        phrases = {" ".join(words[index:index + size])
+                   for size in (5, 4, 3)
+                   for index in range(max(0, len(words) - size + 1))
+                   if not set(words[index:index + size]) <= {
+                       "what", "does", "from", "this", "that", "with", "about", "insurance", "policy"}}
+        pdf_matches = [item for item in state["evidence"]
+                       if item["metadata"].get("origin") == "uploaded_pdf"
+                       and any(phrase in normalize_question(item["text"]) for phrase in phrases)]
+        unique_text = {normalize_question(item["text"]) for item in pdf_matches}
+        if pdf_matches and len(unique_text) == 1:
+            return {"selection": Selection(evidence_ids=[pdf_matches[0]["id"]])}
         return {}
 
     def select(state: State):

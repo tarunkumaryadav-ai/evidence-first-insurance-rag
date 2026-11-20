@@ -110,6 +110,28 @@ def test_graph_returns_only_verbatim_evidence(store, settings, html):
     assert result.sources[0].url == URL
 
 
+def test_literal_uploaded_pdf_phrase_bypasses_model_selector(store, settings):
+    from app.models import Chunk
+    timestamp = datetime.now(timezone.utc).isoformat()
+    text = ("A shared access contact is authorised to manage your policy and holds the same "
+            "authority to make changes, cancel and claim until you remove them.")
+    metadata = {"source_url": "document://doc1", "document_id": "doc1",
+                "document_filename": "policy.pdf", "page_number": 35, "product": "car",
+                "scope": "product", "applicable_products": ["car"], "variant": None,
+                "category": "general", "heading_path": ["policy.pdf", "Page 35"],
+                "sitemap_lastmod": None, "fetched_at": timestamp, "content_hash": "test",
+                "section_id": "pdf-page-35", "extractor_version": "pdf-v1",
+                "origin": "uploaded_pdf"}
+    store.replace_page("document://doc1", [Chunk(id="11111111-1111-4111-8111-111111111111", text=text, metadata=metadata)],
+                       "uploaded_pdf")
+    def should_not_run(_):
+        raise AssertionError("Literal PDF phrase should bypass the model selector")
+    result = build_graph(store, settings, selector=should_not_run).invoke({"request": Question(
+        question="What is a shared access contact and what authority do they have?", product="car")})["response"]
+    assert result.status == "answered" and "shared access contact" in result.answer
+    assert result.sources[0].page_number == 35
+
+
 def test_invented_citation_rejected(store, html):
     ingest_html(store, html, SitemapEntry(url=URL))
     evidence = store.retrieve(Question(question="accidental damage", product="car"))
