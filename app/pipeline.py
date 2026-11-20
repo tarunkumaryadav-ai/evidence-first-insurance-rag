@@ -10,7 +10,7 @@ from app.config import Settings
 from app.models import Answer, EvidenceDecision, Question, Selection, Source
 from app.store import Store, normalize_question
 from app.routing import clarify_scope, infer_products, infer_variant
-from app.documents import signed_evidence_url
+from app.documents import (normalize_pdf_lookup, pdf_term_score, signed_evidence_url)
 
 logger = logging.getLogger(__name__)
 
@@ -106,18 +106,32 @@ def build_graph(store: Store, settings: Settings, *, selector=None):
         # Uploaded policy documents often have page-based headings rather than HTML
         # question headings. A literal, distinctive phrase is deterministic evidence
         # retrieval and does not require a slow or probabilistic LLM decision.
-        words = question.split()
+        lookup_question = normalize_pdf_lookup(state["request"].question)
+        words = lookup_question.split()
         phrases = {" ".join(words[index:index + size])
                    for size in (5, 4, 3)
                    for index in range(max(0, len(words) - size + 1))
                    if not set(words[index:index + size]) <= {
                        "what", "does", "from", "this", "that", "with", "about", "insurance", "policy"}}
-        pdf_matches = [item for item in state["evidence"]
+        pdf_evidence = [item for item in state["evidence"]
+                        if item["metadata"].get("origin") == "uploaded_pdf"]
+        pdf_matches = [item for item in pdf_evidence
                        if item["metadata"].get("origin") == "uploaded_pdf"
-                       and any(phrase in normalize_question(item["text"]) for phrase in phrases)]
+                       and any(phrase in normalize_pdf_lookup(item["text"]) for phrase in phrases)]
         unique_text = {normalize_question(item["text"]) for item in pdf_matches}
         if pdf_matches and len(unique_text) == 1:
             return {"selection": Selection(evidence_ids=[pdf_matches[0]["id"]])}
+        scored = []
+        for item in pdf_evidence:
+            coverage, overlap = pdf_term_score(state["request"].question, item["text"])
+            if overlap >= 4 and coverage >= 0.75:
+                scored.append((item, coverage, overlap))
+        if scored:
+            best_score = max((coverage, overlap) for _, coverage, overlap in scored)
+            best = [item for item, coverage, overlap in scored
+                    if (coverage, overlap) == best_score]
+            if len({normalize_question(item["text"]) for item in best}) == 1:
+                return {"selection": Selection(evidence_ids=[best[0]["id"]])}
         return {}
 
     def select(state: State):

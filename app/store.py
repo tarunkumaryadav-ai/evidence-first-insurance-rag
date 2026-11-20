@@ -15,7 +15,7 @@ from qdrant_client import QdrantClient, models
 from app.config import Settings
 from app.models import Chunk, Question
 from app.extract import EXTRACTOR_VERSION, VARIANTS
-from app.documents import PDF_EXTRACTOR_VERSION
+from app.documents import PDF_EXTRACTOR_VERSION, pdf_term_score
 
 
 def normalize_question(text: str | None) -> str:
@@ -218,6 +218,19 @@ class Store:
                       request.category, request.category, self.settings.retrieve_k * 4)).fetchall()
                 for rank, row in enumerate(rows):
                     ranks[row[0]] = ranks.get(row[0], 0) + 1 / (60 + rank + 1)
+            # Promote strict, high-coverage matches from private PDFs so a similar
+            # public article cannot crowd an exact contractual clause out of top-k.
+            pdf_rows = db.execute("""
+                SELECT id,body FROM chunks WHERE json_extract(metadata, '$.origin')='uploaded_pdf'
+                AND (json_extract(metadata, '$.product')=? OR
+                  (json_extract(metadata, '$.scope')='global' AND EXISTS (
+                    SELECT 1 FROM json_each(metadata, '$.applicable_products') WHERE value=?)))
+            """, (request.product, request.product)).fetchall()
+            for row in pdf_rows:
+                coverage, overlap = pdf_term_score(request.question, row["body"])
+                if overlap >= 4 and coverage >= 0.75:
+                    ranks[row["id"]] = max(ranks.get(row["id"], 0),
+                                           2 + coverage + overlap / 100)
             candidates, seen_sections = [], set()
             for chunk_id in sorted(ranks, key=ranks.get, reverse=True):
                 row = db.execute("SELECT * FROM chunks WHERE id=?", (chunk_id,)).fetchone()

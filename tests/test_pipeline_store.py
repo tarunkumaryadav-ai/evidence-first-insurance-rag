@@ -114,7 +114,8 @@ def test_literal_uploaded_pdf_phrase_bypasses_model_selector(store, settings):
     from app.models import Chunk
     timestamp = datetime.now(timezone.utc).isoformat()
     text = ("A shared access contact is authorised to manage your policy and holds the same "
-            "authority to make changes, cancel and claim until you remove them.")
+            "authority to make changes, cancel and claim until you remove them. "
+            "There is no cover if your car is used for driver education at more than 100km/hour.")
     metadata = {"source_url": "document://doc1", "document_id": "doc1",
                 "document_filename": "policy.pdf", "page_number": 35, "product": "car",
                 "scope": "product", "applicable_products": ["car"], "variant": None,
@@ -130,6 +131,10 @@ def test_literal_uploaded_pdf_phrase_bypasses_model_selector(store, settings):
         question="What is a shared access contact and what authority do they have?", product="car")})["response"]
     assert result.status == "answered" and "shared access contact" in result.answer
     assert result.sources[0].page_number == 35
+    speed = build_graph(store, settings, selector=should_not_run).invoke({"request": Question(
+        question="Does the policy cover using my car for driver education above 100 km/h?",
+        product="car")})["response"]
+    assert speed.status == "answered" and "100km/hour" in speed.answer
 
 
 def test_invented_citation_rejected(store, html):

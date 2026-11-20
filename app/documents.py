@@ -13,6 +13,27 @@ from uuid import NAMESPACE_URL, uuid4, uuid5
 from app.models import Chunk
 
 PDF_EXTRACTOR_VERSION = "pdf-v1"
+PDF_LOOKUP_STOPWORDS = {"a", "an", "and", "are", "can", "car", "cover", "do", "does",
+                        "for", "from", "have", "how", "i", "in", "insurance", "is", "it",
+                        "me", "my", "of", "on", "policy", "tell", "that", "the", "their",
+                        "this", "to", "using", "what", "when", "where", "which", "who", "with"}
+
+
+def normalize_pdf_lookup(text: str) -> str:
+    value = " ".join(re.findall(r"\w+", (text or "").casefold()))
+    value = re.sub(r"(?<=\d)(?=[a-z])|(?<=[a-z])(?=\d)", " ", value)
+    value = re.sub(r"\b(?:above|over)\b", "more than", value)
+    value = re.sub(r"\bh\b", "hour", value)
+    return " ".join(value.split())
+
+
+def pdf_term_score(question: str, evidence: str) -> tuple[float, int]:
+    query_terms = {word for word in normalize_pdf_lookup(question).split()
+                   if word not in PDF_LOOKUP_STOPWORDS}
+    if not query_terms:
+        return 0, 0
+    overlap = query_terms & set(normalize_pdf_lookup(evidence).split())
+    return len(overlap) / len(query_terms), len(overlap)
 
 
 def document_secret(settings) -> str:
