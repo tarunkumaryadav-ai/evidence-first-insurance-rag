@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Ask questions about Allianz Australia car, home and business insurance, with website sources.">
+  <title>Insurance knowledge chat</title>
+  <link rel="stylesheet" href="/assets/chat.css">
+  <script src="/assets/chat.js" defer></script>
+</head>
+<body>
+  <aside class="sidebar">
+    <a class="brand" href="/" aria-label="Insurance chat home"><span class="brand-icon">a</span><span>Insurance<br><strong>knowledge chat</strong></span></a>
+    <div class="workspace-label">YOUR LOCAL WORKSPACE</div>
+    <button id="new-chat" class="new-chat" type="button"><span aria-hidden="true">＋</span> New conversation</button>
+    <div class="scope"><span class="scope-label">CONNECTED KNOWLEDGE</span><h2>Allianz Australia</h2><p>Car, home and business insurance.</p><div class="source-indicator"><span></span> Website knowledge index</div></div>
+    <div class="sidebar-bottom"><p>Your questions stay in this local application. Each conversation has its own context.</p><a href="/docs" target="_blank" rel="noopener noreferrer">API documentation ↗</a></div>
+  </aside>
+  <main>
+    <header class="topbar"><div><span class="eyebrow">ASK YOUR KNOWLEDGE BASE</span><h1>A little more clarity.</h1></div><span class="local-badge">Local chat</span></header>
+    <section id="conversation" class="conversation" aria-label="Conversation">
+      <div id="welcome" class="welcome"><div class="welcome-symbol" aria-hidden="true">✳</div><h2>What would you like to know?</h2><p>Ask naturally. I’ll find information from the website<br class="desktop-break"> and show you where it came from.</p>
+        <div class="starters"><button type="button" data-prompt="How much is Allianz car insurance?">How much is car insurance? <span>↗</span></button><button type="button" data-prompt="Can I pay monthly or annually?">Can I pay monthly or annually? <span>↗</span></button><button type="button" data-prompt="What is public liability insurance?">What is public liability insurance? <span>↗</span></button></div>
+      </div>
+      <div id="messages" class="messages" role="log" aria-live="polite" aria-relevant="additions"></div>
+    </section>
+    <div class="composer-area">
+      <div id="context" class="context" aria-live="polite">Car · Home · Business</div>
+      <form id="chat-form" class="composer"><label class="sr-only" for="message">Your question</label><textarea id="message" rows="1" maxlength="2000" placeholder="Ask a question, or continue the conversation…" required></textarea><button id="send" type="submit" aria-label="Send message">↑</button></form>
+      <div class="composer-footer"><span>Answers use indexed website content and include sources.</span><details id="connection"><summary>Connection settings</summary><label for="api-key">API key, if configured</label><input id="api-key" type="password" autocomplete="off" placeholder="Optional for local use"></details></div>
+    </div>
+  </main>
+</body>
+</html>

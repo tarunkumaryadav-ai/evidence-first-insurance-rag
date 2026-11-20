@@ -1,0 +1,16 @@
+langchain
+langgraph
+langchain-ollama
+langchain-qdrant
+qdrant-client
+ollama
+fastapi
+uvicorn
+pydantic-settings
+httpx
+beautifulsoup4
+lxml
+defusedxml
+tenacity
+pytest
+portalocker
