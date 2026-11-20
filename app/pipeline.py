@@ -10,6 +10,7 @@ from app.config import Settings
 from app.models import Answer, EvidenceDecision, Question, Selection, Source
 from app.store import Store, normalize_question
 from app.routing import clarify_scope, infer_products, infer_variant
+from app.documents import signed_evidence_url
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +38,7 @@ class State(TypedDict, total=False):
     selection_response: str
 
 
-def render_answer(evidence: list[dict], selection: Selection) -> Answer:
+def render_answer(evidence: list[dict], selection: Selection, settings: Settings | None = None) -> Answer:
     supplied = {item["id"]: item for item in evidence}
     ids = list(dict.fromkeys(selection.evidence_ids))
     checked = list(dict.fromkeys(item["metadata"]["source_url"] for item in evidence))
@@ -46,11 +47,15 @@ def render_answer(evidence: list[dict], selection: Selection) -> Answer:
             answer="I could not find sufficient supporting evidence in the indexed Allianz content.",
             sources_checked=checked)
     selected = [supplied[item] for item in ids]
-    sources = [Source(url=item["metadata"]["source_url"], chunk_id=item["id"],
+    sources = [Source(url=(signed_evidence_url(settings, item["metadata"], item["id"])
+                          if settings and item["metadata"].get("origin") == "uploaded_pdf"
+                          else item["metadata"]["source_url"]), chunk_id=item["id"],
                       heading_path=item["metadata"]["heading_path"],
                       sitemap_lastmod=item["metadata"].get("sitemap_lastmod"),
                       fetched_at=item["metadata"]["fetched_at"],
-                      origin=item["metadata"].get("origin", "unknown")) for item in selected]
+                      origin=item["metadata"].get("origin", "unknown"),
+                      page_number=item["metadata"].get("page_number"),
+                      document_filename=item["metadata"].get("document_filename")) for item in selected]
     paragraphs = []
     for index, item in enumerate(selected, 1):
         heading = " > ".join(item["metadata"]["heading_path"])
@@ -138,7 +143,7 @@ def build_graph(store: Store, settings: Settings, *, selector=None):
         return {"selection": selection, "evidence": evidence, "selection_response": result.content}
 
     def respond(state: State):
-        return {"response": render_answer(state["evidence"], state.get("selection", Selection(evidence_ids=[])))}
+        return {"response": render_answer(state["evidence"], state.get("selection", Selection(evidence_ids=[])), settings)}
 
     graph = StateGraph(State)
     graph.add_node("route", route)

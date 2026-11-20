@@ -3,7 +3,7 @@
 [![CI](https://github.com/tarunkumaryadav-ai/evidence-first-insurance-rag/actions/workflows/ci.yml/badge.svg)](https://github.com/tarunkumaryadav-ai/evidence-first-insurance-rag/actions/workflows/ci.yml)
 [![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Local AI](https://img.shields.io/badge/inference-local--first-0F766E)](#local-models)
-[![Tests](https://img.shields.io/badge/tests-115%20passing-15803D)](#validation)
+[![Tests](https://img.shields.io/badge/tests-119%20passing-15803D)](#validation)
 
 A production-oriented, local-first retrieval-augmented generation system for
 answering questions from public insurance content. It combines controlled web
@@ -23,6 +23,7 @@ focuses on the engineering needed for a maintainable knowledge system:
 - **Structured metadata:** every chunk carries product, category, variant, sub-product, source URL, and freshness data.
 - **Conversational clarification:** ambiguous questions are narrowed before retrieval while follow-up context is retained.
 - **Local inference:** Ollama runs both the Qwen LLM and Nomic embedding model without a paid API.
+- **Private PDF evidence:** upload text PDFs, retain page metadata, and open a short-lived signed evidence viewer with the cited passage highlighted beside the exact PDF page.
 - **Operational controls:** crawl pacing, robots checks, bounded context, API authentication support, health/status endpoints, locks, and reproducible dependency pins.
 
 ## Verified implementation snapshot
@@ -32,7 +33,7 @@ focuses on the engineering needed for a maintainable knowledge system:
 | Discovered sitemap entries | 512 |
 | In-scope car, home, and business pages | 192 |
 | Indexed chunks | 2,703 |
-| Offline automated tests | 115 passing |
+| Offline automated tests | 119 passing |
 | Ingestion errors in the recorded full run | 0 |
 
 The corpus figures describe a local run completed on 11 November 2026 and are not
@@ -45,17 +46,20 @@ recorded checks and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for design deta
 ```mermaid
 flowchart LR
     A["Sitemap and HTML pages"] --> B["Respectful crawler"]
+    P["Private PDF upload"] --> Q["Page-aware PDF extraction"]
     B --> C["Main-content extraction"]
     C --> D["Tag-aware chunks + metadata"]
     D --> E["SQLite manifest + keyword index"]
     D --> F["Nomic embeddings + Qdrant"]
+    Q --> E
+    Q --> F
     G["Question or chat message"] --> H["Product routing + clarification"]
     H --> I["LangGraph evidence workflow"]
     E --> I
     F --> I
     I --> J["Freshness and evidence gates"]
     J --> K["Qwen grounded answer or abstention"]
-    K --> L["Answer + source URLs"]
+    K --> L["Answer + source URLs / signed PDF evidence"]
 ```
 
 The controlled graph keeps routing, retrieval, evidence validation, generation,
@@ -98,6 +102,25 @@ python start.py
 ```
 
 Open <http://127.0.0.1:8000/> for chat or <http://127.0.0.1:8000/docs> for the API.
+
+### Private PDF upload and citations
+
+The chat sidebar accepts a text-based PDF and requires an explicit car, home, or
+business scope. Files are stored under the excluded local `data/documents` directory,
+not under the public web assets directory. Each extracted chunk records its document
+ID and one-based PDF page number. A cited PDF source opens an application-hosted
+evidence viewer with the exact retrieved passage highlighted in yellow and the PDF
+opened at the cited page.
+
+Source URLs contain an opaque document ID and an HMAC signature that expires after
+15 minutes by default. They reveal neither the original filesystem path nor a reusable
+public file URL. Set `RAG_DOCUMENT_SIGNING_KEY` to a long random value before any
+non-local deployment. A signed link is a bearer credential until it expires; an
+internet-facing multi-user deployment also requires authenticated users and per-document
+authorization at the reverse proxy or application identity layer.
+
+Image-only/scanned PDFs are rejected when they contain no extractable text. OCR is not
+silently attempted in this release.
 
 > [!IMPORTANT]
 > This is an independent engineering portfolio project. It is not affiliated with,

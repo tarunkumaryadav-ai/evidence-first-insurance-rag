@@ -49,6 +49,8 @@ class Source(BaseModel):
     sitemap_lastmod: str | None
     fetched_at: str
     origin: str
+    page_number: int | None = None
+    document_filename: str | None = None
 
 
 class Answer(BaseModel):

@@ -31,6 +31,8 @@ inference, and deterministic failure behavior.
 5. The local Qwen model receives only bounded evidence and an explicit instruction
    to avoid unsupported claims.
 6. The API returns answer status, cited passages, exact source URLs, and metadata.
+7. Private PDFs use page-aware extraction. Their citations become expiring HMAC-signed
+   evidence URLs that show the retrieved passage beside the cited PDF page.
    Failed evidence checks produce an abstention rather than a plausible guess.
 
 ## Why LangChain and LangGraph

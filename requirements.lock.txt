@@ -41,6 +41,7 @@ ormsgpack==1.13.1
 packaging==26.3
 pluggy==1.7.0
 portalocker==4.4.2
+pypdf==7.1.1
 protobuf==7.36.2
 pydantic==2.14.3
 pydantic-settings==2.16.2

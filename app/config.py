@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     qdrant_api_key: str | None = None
     collection: str = "allianz_v1"
     api_key: str | None = None
+    document_signing_key: str | None = None
+    document_link_ttl_seconds: int = Field(default=900, ge=60, le=86400)
+    upload_max_bytes: int = Field(default=20 * 1024 * 1024, ge=1024, le=100 * 1024 * 1024)
     timeout_seconds: float = Field(default=180, gt=0)
     llm_timeout_seconds: float = Field(default=600, gt=0)
     exact_faq_lookup: bool = True

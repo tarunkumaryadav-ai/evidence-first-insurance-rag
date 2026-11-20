@@ -15,6 +15,7 @@ from qdrant_client import QdrantClient, models
 from app.config import Settings
 from app.models import Chunk, Question
 from app.extract import EXTRACTOR_VERSION
+from app.documents import PDF_EXTRACTOR_VERSION
 
 
 def normalize_question(text: str | None) -> str:
@@ -69,6 +70,10 @@ class Store:
                     CREATE TABLE IF NOT EXISTS runs (
                         id INTEGER PRIMARY KEY, started_at TEXT, finished_at TEXT,
                         status TEXT, details TEXT
+                    );
+                    CREATE TABLE IF NOT EXISTS documents (
+                        id TEXT PRIMARY KEY, filename TEXT NOT NULL, storage_name TEXT NOT NULL,
+                        product TEXT NOT NULL, content_hash TEXT NOT NULL, uploaded_at TEXT NOT NULL
                     );
                 """)
                 existing = db.execute("SELECT value FROM settings WHERE key='embedding_model'").fetchone()
@@ -215,7 +220,7 @@ class Store:
                 if not row:
                     continue  # Never expose an uncommitted/obsolete vector revision.
                 metadata = json.loads(row["metadata"])
-                if metadata.get("extractor_version") != EXTRACTOR_VERSION:
+                if metadata.get("extractor_version") not in {EXTRACTOR_VERSION, PDF_EXTRACTOR_VERSION}:
                     continue
                 is_global = metadata.get("scope") == "global"
                 if metadata["product"] != request.product and not (
@@ -225,7 +230,7 @@ class Store:
                        and not (key == "variant" and is_global and metadata.get(key) is None)
                        for key in ("variant", "category")):
                     continue
-                if datetime.fromisoformat(metadata["fetched_at"]) < cutoff:
+                if metadata.get("origin") != "uploaded_pdf" and datetime.fromisoformat(metadata["fetched_at"]) < cutoff:
                     continue
                 section = metadata["section_id"]
                 if section in seen_sections:

@@ -7,6 +7,10 @@ const viewport = document.querySelector("#conversation");
 const context = document.querySelector("#context");
 const newChat = document.querySelector("#new-chat");
 const keyInput = document.querySelector("#api-key");
+const uploadButton = document.querySelector("#upload-pdf");
+const uploadFile = document.querySelector("#pdf-file");
+const uploadProduct = document.querySelector("#pdf-product");
+const uploadStatus = document.querySelector("#upload-status");
 const storageKey = "allianz-local-chat-v1";
 let state = {session_id: null, product: null, messages: []};
 let busy = false;
@@ -16,7 +20,7 @@ function save() { try { sessionStorage.setItem(storageKey, JSON.stringify(state)
 function headers() { const value = {"Content-Type": "application/json"}; if (keyInput.value) value["X-API-Key"] = keyInput.value; return value; }
 function scrollBottom() { viewport.scrollTop = viewport.scrollHeight; }
 function updateContext() { context.textContent = state.product ? `${state.product[0].toUpperCase()}${state.product.slice(1)} insurance · You can change topic anytime` : "Car · Home · Business"; }
-function safeLink(url) { try { const parsed = new URL(url); return parsed.protocol === "https:" && parsed.hostname === "www.allianz.com.au" ? parsed.href : null; } catch (_) { return null; } }
+function safeLink(url) { try { const parsed = new URL(url, location.origin); const website = parsed.protocol === "https:" && parsed.hostname === "www.allianz.com.au"; const document = parsed.origin === location.origin && parsed.pathname.startsWith("/documents/"); return website || document ? parsed.href : null; } catch (_) { return null; } }
 function link(parent, url, label) { const href = safeLink(url); if (!href) return; const a = document.createElement("a"); a.href = href; a.textContent = label; a.className = "source-link"; a.target = "_blank"; a.rel = "noopener noreferrer"; parent.append(a); }
 function render(turn, pending = false) {
   welcome.hidden = true;
@@ -73,3 +77,19 @@ newChat.addEventListener("click", async () => {
 });
 for (const turn of state.messages) render(turn);
 updateContext(); input.focus();
+uploadButton.addEventListener("click", async () => {
+  const file = uploadFile.files[0];
+  if (!file) { uploadStatus.textContent = "Choose a PDF first."; return; }
+  uploadButton.disabled = true; uploadStatus.textContent = "Uploading and indexing...";
+  const requestHeaders = {}; if (keyInput.value) requestHeaders["X-API-Key"] = keyInput.value;
+  requestHeaders["Content-Type"] = "application/pdf";
+  const params = new URLSearchParams({filename: file.name, product: uploadProduct.value});
+  try {
+    const response = await fetch(`/documents?${params}`, {method: "POST", headers: requestHeaders, body: file});
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.detail || "PDF upload failed.");
+    uploadStatus.textContent = `${result.filename} indexed: ${result.pages_with_text} pages, ${result.chunks} chunks.`;
+    uploadFile.value = "";
+  } catch (error) { uploadStatus.textContent = error.message; }
+  finally { uploadButton.disabled = false; }
+});
